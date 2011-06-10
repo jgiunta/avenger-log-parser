@@ -1,0 +1,19 @@
+
+Mail Avenger Log Parser
+-----------------------
+
+Author = Jorge Giunta <jorge at giunta com ar>
+Version = 0.1
+
+INSTALL
+-------
+
+1) Create a mySQL database
+2) Inject parse.sql into the database
+3) Edit config.php, and set up de DB values.
+4) Move parse to /usr/local/bin.
+5) Set your cron daemon to execute parse.
+6) Move parse.php to your htdocs folder.
+
+This software is under GPL License
+

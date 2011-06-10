@@ -1,0 +1,99 @@
+#!/usr/bin/php
+<?
+
+include "config.php";
+
+if($argc < 2) {
+	echo "Avenger Log Parser v$version\n";
+	echo "Use $argv[0] login\n";
+	echo "Use $argv[0] from\n";
+	echo "Use $argv[0] rcpt";
+}
+
+if($argv[1] == "login") {
+	$handle = @fopen("/var/log/mail.log", "r");
+	if ($handle) {
+	    while (!feof($handle)) {
+       		$buffer = fgets($handle, 4096);
+       		if (strstr($buffer, "==> AUTH PLAIN")) {
+	       		$buffer2 = explode(" ",$buffer);
+	       		$user = base64_decode($buffer2[10]);
+	       		echo "$buffer2[0] $buffer2[1] $buffer2[2] --> $user";
+	       		echo "\n";
+       	       }
+    	    }
+    	fclose($handle);
+	}
+}
+
+if($argv[1] == "from") {
+	$con = mysql_connect($dbhost,$dbuser,$dbpass);
+	mysql_select_db($dbname);
+        $handle = @fopen("/var/log/mail.log", "r");
+        if ($handle) {
+            while (!feof($handle)) {
+                $buffer = fgets($handle, 4096);
+		if (strstr($buffer, "==> MAIL FROM")) {
+                        $buffer2 = explode(" ",$buffer);
+			$buffer3 = explode(":",$buffer2[9]);
+			$buffer3[1] = substr($buffer3[1], 1, strlen($buffer3[1]) - 3);
+			$buffer3[1] = trim($buffer3[1]);
+			$hits_mail = 0;
+                        $sql = "SELECT * FROM tfrom WHERE from_mail = '$buffer3[1]'";
+			$res = mysql_query($sql,$con);
+			while ($tmp = mysql_fetch_array($res)) {
+				$hits_mail = $tmp['hits'];
+			}
+				
+			if($hits_mail == 0 && $buffer3[1] != NULL && $buffer3[1] != "<>") {
+				$sql = "INSERT INTO tfrom (from_mail, hits) VALUES ('$buffer3[1]','1')";
+				$res = mysql_query($sql,$con);
+			} 
+			if($hits_mail >= 1) {
+				$hits_mail++;
+				$sql = "UPDATE tfrom SET hits = $hits_mail WHERE from_mail = '$buffer3[1]'";
+				$res = mysql_query($sql,$con);
+			}	
+		}	
+            }			
+	}    
+	fclose($handle);
+	mysql_close($con);
+}
+
+if($argv[1] == "rcpt") {
+        $con = mysql_connect($dbhost,$dbuser,$dbpass);
+        mysql_select_db($dbname);
+        $handle = @fopen("/var/log/mail.log", "r");
+        if ($handle) {
+            while (!feof($handle)) {
+                $buffer = fgets($handle, 4096);
+                if (strstr($buffer, " ==> RCPT TO")) {
+                        $buffer2 = explode(" ",$buffer);
+                        $buffer3 = explode(":",$buffer2[9]);
+                        $buffer3[1] = substr($buffer3[1], 1, strlen($buffer3[1]) - 3);
+                        $buffer3[1] = trim($buffer3[1]);
+                        $hits_mail = 0;
+                        $sql = "SELECT * FROM trcpt WHERE rcpt_mail = '$buffer3[1]'";
+                        $res = mysql_query($sql,$con);
+                        while ($tmp = mysql_fetch_array($res)) {
+                                $hits_mail = $tmp['hits'];
+                        }
+                        if($hits_mail == 0 && $buffer3[1] != NULL && $buffer3[1] != "<>") {
+                                $sql = "INSERT INTO trcpt (rcpt_mail, hits) VALUES ('$buffer3[1]','1')";
+                                $res = mysql_query($sql,$con);
+                        } 
+                        if($hits_mail >= 1) {
+                                $hits_mail++;
+                                $sql = "UPDATE trcpt SET hits = $hits_mail WHERE rcpt_mail = '$buffer3[1]'";
+                                $res = mysql_query($sql,$con);
+                        } 
+                } 
+            } 
+        } 
+        fclose($handle);
+        mysql_close($con);
+}
+
+?>
+
